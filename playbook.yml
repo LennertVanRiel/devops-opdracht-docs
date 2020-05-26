@@ -1,0 +1,152 @@
+---
+  - hosts: 127.0.0.1
+    connection: local
+    become: true
+  
+    tasks:
+     - name: Re-create mariadb
+       docker_container:
+         name: mariadb
+         image: mariadb:latest
+         detach: yes
+         state: started
+         restart_policy: always
+         recreate: yes
+         volumes:
+           - /home/db:/var/lib/mysql
+         ports:
+           - 3307:3306
+         env:
+           MYSQL_ROOT_PASSWORD: GuldenMaes
+  
+     - name: clear git dir
+       shell: rm -rf /home/API/repo
+  
+     - name: pull from github
+       git: 
+         repo: git@github.com:LennertVanRiel/cloudAPILennertVanRiel.git
+         dest: /home/API/repo
+         version: devops
+         key_file: /home/lector/.ssh/id_rsa
+  
+     - name: rebuild api image using dockerfile
+       shell: docker rm api
+       shell: docker rmi api_lennert
+       shell: docker build -t api_lennert /home/API/.
+  
+     - name: run api image container
+       docker_container:
+         name: api
+         image: api_lennert
+         detach: yes
+         state: started
+         restart_policy: always
+         recreate: yes
+         ports:
+           - 8181:80
+           - 444:443
+  
+     - name: run client container
+       docker_container:
+         name: client
+         image: httpd:2.4
+         detach: yes
+         state: started
+         restart_policy: always
+         recreate: yes
+         ports:
+           - 8182:80
+         volumes:
+           - /home/API/repo/ClientApp:/usr/local/apache2/htdocs/
+  
+     - name: checkmk container
+       docker_container:
+         name: checkmk
+         image: checkmk/check-mk-raw:1.5.0-latest
+         detach: yes
+         state: started
+         restart_policy: always
+         ports:
+           - 5000:5000
+         volumes:
+           - /home/lector/checkmk:/omd/sites
+  
+     - name: Re-create mariadb PRODUCTION
+       docker_container:
+         name: mariadb_prod
+         image: mariadb:latest
+         detach: yes
+         state: started
+         restart_policy: always
+         recreate: yes
+         volumes:
+           - /home/db_prod:/var/lib/mysql
+         ports:
+           - 3306:3306
+         env:
+           MYSQL_ROOT_PASSWORD: GuldenMaes
+  
+     - name: clear git dir PRODUCTION
+       shell: rm -rf /home/API_prod/repo
+  
+     - name: pull from github PRODUCTION
+       git: 
+         repo: git@github.com:LennertVanRiel/cloudAPILennertVanRiel.git
+         dest: /home/API_prod/repo
+         version: devops_prod
+         key_file: /home/lector/.ssh/id_rsa
+  
+     - name: rebuild api image using dockerfile PRODUCTION
+       shell: docker rm api_prod
+       shell: docker rmi api_lennert_prod
+       shell: docker build -t api_lennert_prod /home/API_prod/.
+  
+     - name: run api image container PRODUCTION
+       docker_container:
+         name: api_prod
+         image: api_lennert_prod
+         detach: yes
+         state: started
+         restart_policy: always
+         recreate: yes
+         ports:
+           - 8081:80
+           - 443:443
+  
+     - name: run client container PRODUCTION
+       docker_container:
+         name: client_prod
+         image: httpd:2.4
+         detach: yes
+         state: started
+         restart_policy: always
+         recreate: yes
+         ports:
+           - 8082:80
+         volumes:
+           - /home/API_prod/repo/ClientApp:/usr/local/apache2/htdocs/
+
+
+   - name: install elk container
+     docker_container:
+       name: elk
+       image: sebp/elk
+       state: started
+       detach: yes
+       restart_policy: always
+       ports: 
+         - 5601:5601
+         - 9200:9200
+         - 5044:5044
+       volumes:
+         - elk-data:/var/lib/elasticsearch
+
+  
+  
+  
+  
+  
+  
+  
+         
+  
